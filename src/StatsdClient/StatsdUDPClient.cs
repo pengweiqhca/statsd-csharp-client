@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -39,9 +41,32 @@ namespace StatsdClient
             _ipEndpoint = AddressResolution.GetIpv4EndPoint(name, port);
         }
 
-        public void Send(string command) => SendAsync(new ArraySegment<byte>(_encoding.GetBytes(command))).GetAwaiter().GetResult();
+        public void Send(ReadOnlySpan<char> command) => SendAsync(command).GetAwaiter().GetResult();
 
-        public Task SendAsync(string command) => SendAsync(new ArraySegment<byte>(_encoding.GetBytes(command)));
+        public Task SendAsync(ReadOnlySpan<char> command) => SendAsync(GetBytes(command, out var count), count);
+
+        public async Task SendAsync(IMemoryOwner<byte> owner, int count)
+        {
+            using (owner)
+            {
+                if (MemoryMarshal.TryGetArray<byte>(owner.Memory, out var data))
+                    await SendAsync(new ArraySegment<byte>(data.Array, 0, count)).ConfigureAwait(false);
+            }
+        }
+
+        private unsafe IMemoryOwner<byte> GetBytes(ReadOnlySpan<char> command, out int count)
+        {
+            fixed (char* chars = command)
+            {
+                count = _encoding.GetByteCount(chars, command.Length);
+                var owner = MemoryPool<byte>.Shared.Rent(count);
+
+                fixed (byte* bytes = &owner.Memory.Span.GetPinnableReference())
+                    _encoding.GetBytes(chars, command.Length, bytes, count);
+
+                return owner;
+            }
+        }
 
         private async Task SendAsync(ArraySegment<byte> encodedCommand)
         {

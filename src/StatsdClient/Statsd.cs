@@ -1,8 +1,10 @@
-using System;
+﻿using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace StatsdClient
@@ -29,7 +31,7 @@ namespace StatsdClient
 
         private readonly string _prefix;
 
-        internal ConcurrentQueue<string> Commands { get; private set; }
+        internal ConcurrentQueue<ReadOnlyMemory<char>> Commands { get; private set; }
 
         public class Counting : IAllowsSampleRate, IAllowsInteger { }
         public class Timing : IAllowsSampleRate, IAllowsInteger { }
@@ -50,7 +52,7 @@ namespace StatsdClient
 
         public Statsd(IStatsdClient statsdClient, IRandomGenerator randomGenerator, IStopWatchFactory stopwatchFactory, string prefix)
         {
-            Commands = new ConcurrentQueue<string>();
+            Commands = new ConcurrentQueue<ReadOnlyMemory<char>>();
             StopwatchFactory = stopwatchFactory;
             StatsdClient = statsdClient;
             RandomGenerator = randomGenerator;
@@ -92,6 +94,7 @@ namespace StatsdClient
                 const string deltaValueStringFormat = "{0:+#.###;-#.###;+0}";
                 var formattedValue = string.Format(CultureInfo.InvariantCulture, deltaValueStringFormat, value);
                 var command = GetCommand(name, formattedValue, _commandToUnit[typeof(TCommandType)], 1);
+
                 return SendSingleAsync(command);
             }
 
@@ -128,7 +131,20 @@ namespace StatsdClient
         {
             try
             {
-                await StatsdClient.SendAsync(string.Join("\n", Commands.ToArray())).ConfigureAwait(false);
+                var commands = Commands.ToArray();
+
+                var array = MemoryPool<char>.Shared.Rent(commands.Sum(c => c.Length + 1));
+                var index = 0;
+                foreach (var command in commands)
+                {
+                    command.CopyTo(array.Memory.Slice(index));
+                    index += command.Length + 1;
+
+                    array.Memory.Span.Slice(index - 1, 1).Fill('\n');
+                }
+
+                await StatsdClient.SendAsync(array.Memory.Span.Slice(0, index - 1)).ConfigureAwait(false);
+
                 AtomicallyClearQueue();
             }
             catch (Exception e)
@@ -141,15 +157,15 @@ namespace StatsdClient
         {
             lock (_commandCollectionLock)
             {
-                Commands = new ConcurrentQueue<string>();
+                Commands = new ConcurrentQueue<ReadOnlyMemory<char>>();
             }
         }
 
-        private string GetCommand(string name, string value, string unit, double sampleRate)
+        private ReadOnlyMemory<char> GetCommand(string name, string value, string unit, double sampleRate)
         {
             var format = Math.Abs(sampleRate - 1) < 0.00000001 ? "{0}:{1}|{2}" : "{0}:{1}|{2}|@{3}";
 
-            return string.Format(CultureInfo.InvariantCulture, format, _prefix + name, value, unit, sampleRate);
+            return string.Format(CultureInfo.InvariantCulture, format, _prefix + name, value, unit, sampleRate).AsMemory();
         }
 
         public void Add(Action actionToTime, string statName, double sampleRate = 1) =>
@@ -177,11 +193,11 @@ namespace StatsdClient
             }
         }
 
-        private async Task SendSingleAsync(string command)
+        private async Task SendSingleAsync(ReadOnlyMemory<char> command)
         {
             try
             {
-                await StatsdClient.SendAsync(command).ConfigureAwait(false);
+                await StatsdClient.SendAsync(command.Span).ConfigureAwait(false);
             }
             catch (Exception e)
             {

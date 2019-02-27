@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net45;net471;netcoreapp2.1</TargetFrameworks>
+    <TargetFrameworks>net471;netcoreapp2.1</TargetFrameworks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AssemblyName>Tests</AssemblyName>
     <PackageId>Tests</PackageId>

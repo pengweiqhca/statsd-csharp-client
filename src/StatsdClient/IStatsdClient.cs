@@ -5,7 +5,7 @@ namespace StatsdClient
 {
     public interface IStatsdClient : IDisposable
     {
-        //void Send(string command);
-        Task SendAsync(string command);
+        void Send(ReadOnlySpan<char> command);
+        Task SendAsync(ReadOnlySpan<char> command);
     }
 }

@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Description>Statsd client for C#, providing a full set of counter/timer/gauge/set functionality in an easy to use static. Helpers are provided for easily timing chunks of code too.</Description>
     <AssemblyDescription>Statsd Client</AssemblyDescription>
     <AssemblyTitle>Statsd C# Client</AssemblyTitle>
@@ -21,12 +22,14 @@
     <IncludeSymbols>True</IncludeSymbols>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>..\..\key.snk</AssemblyOriginatorKeyFile>
-    <Version>4.1.0.0</Version>
+    <Version>4.2.0.0</Version>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0-*" PrivateAssets="All" />
     <PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="2.*" Condition="'$(Configuration)' != 'Release'" PrivateAssets="All" />
+    <PackageReference Include="System.Memory" Version="4.5.*" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard1.3'">
