@@ -1,4 +1,4 @@
-namespace StatsdClient
+﻿namespace StatsdClient
 {
     public interface IStopwatch
     {
@@ -21,9 +21,6 @@ namespace StatsdClient
             _stopwatch.Stop();
         }
 
-        public int ElapsedMilliseconds
-        {
-            get { return (int)_stopwatch.ElapsedMilliseconds; }
-        }
+        public int ElapsedMilliseconds => (int)_stopwatch.ElapsedMilliseconds;
     }
 }

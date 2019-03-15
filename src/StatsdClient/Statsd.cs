@@ -109,7 +109,7 @@ namespace StatsdClient
 
         public void Add<TCommandType>(string name, int value) where TCommandType : IAllowsInteger => Commands.Enqueue(GetCommand(name, value.ToString(CultureInfo.InvariantCulture), _commandToUnit[typeof(TCommandType)], 1));
 
-        public void Add<TCommandType>(string name, double value) where TCommandType : IAllowsDouble => Commands.Enqueue(GetCommand(name, String.Format(CultureInfo.InvariantCulture, "{0:F15}", value), _commandToUnit[typeof(TCommandType)], 1));
+        public void Add<TCommandType>(string name, double value) where TCommandType : IAllowsDouble => Commands.Enqueue(GetCommand(name, string.Format(CultureInfo.InvariantCulture, "{0:F15}", value), _commandToUnit[typeof(TCommandType)], 1));
 
         public void Send<TCommandType>(string name, int value, double sampleRate) where TCommandType : IAllowsInteger, IAllowsSampleRate =>
             SendAsync<TCommandType>(name, value, sampleRate).GetAwaiter().GetResult();

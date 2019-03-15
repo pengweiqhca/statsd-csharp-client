@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,7 +51,7 @@ namespace Tests
         private string LastPacketMessageReceived()
         {
             // Stall until the the listener receives a message or times out.
-            while(_listenThread.IsAlive) {}
+            while (_listenThread.IsAlive) { }
 
             var lastMessages = _udpListener.GetAndClearLastMessages();
             try
@@ -347,10 +347,10 @@ namespace Tests
             [TestCase(0d, "gauge:+0|g")]
             public void GaugeDelta_EmitsCorrect_Format(double gaugeDeltaValue, string expectedPacketMessageFormat)
             {
-              Metrics.Configure(_defaultMetricsConfig);
+                Metrics.Configure(_defaultMetricsConfig);
 
-              Metrics.GaugeDelta("gauge", gaugeDeltaValue);
-              Assert.That(LastPacketMessageReceived(), Is.EqualTo(expectedPacketMessageFormat));
+                Metrics.GaugeDelta("gauge", gaugeDeltaValue);
+                Assert.That(LastPacketMessageReceived(), Is.EqualTo(expectedPacketMessageFormat));
             }
         }
 
@@ -363,7 +363,11 @@ namespace Tests
 
                 const double value = 12345678901234567890;
                 Metrics.GaugeAbsoluteValue("gauge", value);
+#if NETCOREAPP3_0
+                Assert.That(LastPacketMessageReceived(), Is.EqualTo("gauge:12345678901234569216.000000000000000|g"));
+#else
                 Assert.That(LastPacketMessageReceived(), Is.EqualTo("gauge:12345678901234600000.000000000000000|g"));
+#endif
             }
 
             [Test]
@@ -373,7 +377,11 @@ namespace Tests
 
                 const double value = 1.234567890123456;
                 Metrics.GaugeAbsoluteValue("gauge", value);
+#if NETCOREAPP3_0
+                Assert.That(LastPacketMessageReceived(), Is.EqualTo("gauge:1.234567890123456|g"));
+#else
                 Assert.That(LastPacketMessageReceived(), Is.EqualTo("gauge:1.234567890123460|g"));
+#endif
             }
 
             [Test]
