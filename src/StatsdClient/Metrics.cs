@@ -208,22 +208,12 @@ namespace StatsdClient
             return _statsD.SendAsync<Statsd.Set>(BuildNamespacedStatName(statName), value);
         }
 
-        private static string BuildNamespacedStatName(string statName)
-        {
-            if (string.IsNullOrEmpty(_prefix))
-            {
-                return statName;
-            }
-
-            return _prefix + "." + statName;
-        }
+        private static string BuildNamespacedStatName(string statName) =>
+            string.IsNullOrEmpty(_prefix) ? statName : _prefix + "." + statName;
 
         /// <summary>
         /// Determine if the Metrics instance has been configured previously.
         /// </summary>
-        public static bool IsConfigured()
-        {
-            return _statsD != null && !(_statsD is NullStatsd);
-        }
+        public static bool IsConfigured() => _statsD != null && !(_statsD is NullStatsd);
     }
 }

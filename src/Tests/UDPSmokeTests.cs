@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using StatsdClient;
 
@@ -13,11 +14,11 @@ namespace Tests
         private static readonly IPAddress ServerHostname = IPAddress.Loopback;
 
         [Test]
-        public void Sends_counter_text()
+        public async Task Sends_counter_text()
         {
             using (var client = new StatsdUDPClient(ServerHostname.ToString()))
             {
-                client.Send("statsd-client.udp-smoke-test:6|c");
+                await client.SendAsync("statsd-client.udp-smoke-test:6|c");
             }
         }
     }

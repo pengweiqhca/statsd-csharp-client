@@ -4,44 +4,42 @@ using System.Threading.Tasks;
 
 namespace StatsdClient
 {
-    public class NullStatsd : IStatsd
+    public class NullStatsd : IStatsd, IStatsdBatch
     {
 #if NET45
         private static readonly Task CompletedTask = Task.FromResult<object>(null);
 #else
         private static readonly Task CompletedTask = Task.CompletedTask;
 #endif
-        public NullStatsd() => Commands = new List<string>();
-
-        public List<string> Commands { get; }
-
-        public void Send<TCommandType>(string name, int value) where TCommandType : IAllowsInteger
+        public void Send<TCommandType>(ReadOnlySpan<char> name, int value) where TCommandType : IAllowsInteger
         {
         }
 
-        public void Add<TCommandType>(string name, int value) where TCommandType : IAllowsInteger
+        public IReadOnlyList<ReadOnlyMemory<char>> Commands => new ReadOnlyMemory<char>[0];
+
+        public void Add<TCommandType>(ReadOnlySpan<char> name, int value) where TCommandType : IAllowsInteger
         {
         }
 
-        public void Send<TCommandType>(string name, double value) where TCommandType : IAllowsDouble
+        public void Send<TCommandType>(ReadOnlySpan<char> name, double value) where TCommandType : IAllowsDouble
         {
         }
 
-        public void Add<TCommandType>(string name, double value) where TCommandType : IAllowsDouble
+        public void Add<TCommandType>(ReadOnlySpan<char> name, double value) where TCommandType : IAllowsDouble
         {
         }
 
-        public void Send<TCommandType>(string name, int value, double sampleRate)
+        public void Send<TCommandType>(ReadOnlySpan<char> name, int value, double sampleRate)
             where TCommandType : IAllowsInteger, IAllowsSampleRate
         {
         }
 
-        public void Add<TCommandType>(string name, int value, double sampleRate)
+        public void Add<TCommandType>(ReadOnlySpan<char> name, int value, double sampleRate)
             where TCommandType : IAllowsInteger, IAllowsSampleRate
         {
         }
 
-        public void Send<TCommandType>(string name, string value) where TCommandType : IAllowsString
+        public void Send<TCommandType>(ReadOnlySpan<char> name, ReadOnlySpan<char> value) where TCommandType : IAllowsString
         {
         }
 
@@ -49,37 +47,37 @@ namespace StatsdClient
         {
         }
 
-        public void Add(Action actionToTime, string statName, double sampleRate = 1)
+        public void Add(Action actionToTime, ReadOnlySpan<char> statName, double sampleRate = 1)
         {
             actionToTime();
         }
 
-        public void Send(Action actionToTime, string statName, double sampleRate = 1)
+        public void Send(Action actionToTime, ReadOnlySpan<char> statName, double sampleRate = 1)
         {
             actionToTime();
         }
 
-        public Task SendAsync<TCommandType>(string name, int value) where TCommandType : IAllowsInteger
+        public Task SendAsync<TCommandType>(ReadOnlySpan<char> name, int value) where TCommandType : IAllowsInteger
         {
             return CompletedTask;
         }
 
-        public Task SendAsync<TCommandType>(string name, double value) where TCommandType : IAllowsDouble
+        public Task SendAsync<TCommandType>(ReadOnlySpan<char> name, double value) where TCommandType : IAllowsDouble
         {
             return CompletedTask;
         }
 
-        public Task SendAsync<TCommandType>(string name, double value, bool isDeltaValue) where TCommandType : IAllowsDouble, IAllowsDelta
+        public Task SendAsync<TCommandType>(ReadOnlySpan<char> name, double value, bool isDeltaValue) where TCommandType : IAllowsDouble, IAllowsDelta
         {
             return CompletedTask;
         }
 
-        public Task SendAsync<TCommandType>(string name, int value, double sampleRate) where TCommandType : IAllowsInteger, IAllowsSampleRate
+        public Task SendAsync<TCommandType>(ReadOnlySpan<char> name, int value, double sampleRate) where TCommandType : IAllowsInteger, IAllowsSampleRate
         {
             return CompletedTask;
         }
 
-        public Task SendAsync<TCommandType>(string name, string value) where TCommandType : IAllowsString
+        public Task SendAsync<TCommandType>(ReadOnlySpan<char> name, ReadOnlySpan<char> value) where TCommandType : IAllowsString
         {
             return CompletedTask;
         }
@@ -89,18 +87,20 @@ namespace StatsdClient
             return CompletedTask;
         }
 
-        public Task AddAsync(Func<Task> actionToTime, string statName, double sampleRate = 1)
+        public Task AddAsync(Func<Task> actionToTime, ReadOnlyMemory<char> statName, double sampleRate = 1)
         {
             return actionToTime();
         }
 
-        public Task SendAsync(Func<Task> actionToTime, string statName, double sampleRate = 1)
+        public Task SendAsync(Func<Task> actionToTime, ReadOnlyMemory<char> statName, double sampleRate = 1)
         {
             return actionToTime();
         }
 
-        public void Send<TCommandType>(string name, double value, bool isDeltaValue) where TCommandType : IAllowsDouble, IAllowsDelta
+        public void Send<TCommandType>(ReadOnlySpan<char> name, double value, bool isDeltaValue) where TCommandType : IAllowsDouble, IAllowsDelta
         {
         }
+
+        public IStatsdBatch CreateBatch() => this;
     }
 }

@@ -40,9 +40,9 @@ namespace StatsdClient
 
             _ipEndpoint = AddressResolution.GetIpv4EndPoint(name, port);
         }
-
-        public void Send(ReadOnlySpan<char> command) => SendAsync(command).GetAwaiter().GetResult();
-
+#if DEBUG
+        public Task SendAsync(string command) => SendAsync(command.AsSpan());
+#endif
         public Task SendAsync(ReadOnlySpan<char> command) => SendAsync(GetBytes(command, out var count), count);
 
         public async Task SendAsync(IMemoryOwner<byte> owner, int count)

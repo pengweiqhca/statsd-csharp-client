@@ -1,6 +1,7 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using StatsdClient;
 using Tests.Helpers;
@@ -56,7 +57,7 @@ namespace Tests
             if (lastPulledMessages.Count == 0)
             {
                 // Stall until the the listener receives a message or times out
-                while(listenThread.IsAlive);
+                while (listenThread.IsAlive) ;
                 lastPulledMessages = udpListener.GetAndClearLastMessages();
             }
 
@@ -74,20 +75,20 @@ namespace Tests
         }
 
         [Test]
-        public void send()
+        public async Task send()
         {
             // (Sanity test)
             listenThread.Start();
-            udp.Send("test-metric");
+            await udp.SendAsync("test-metric");
             AssertWasReceived("test-metric");
         }
 
         [Test]
-        public void send_equal_to_udp_packet_limit_is_still_sent()
+        public async Task send_equal_to_udp_packet_limit_is_still_sent()
         {
             var msg = new string('f', MetricsConfig.DefaultStatsdMaxUDPPacketSize);
             listenThread.Start();
-            udp.Send(msg);
+            await udp.SendAsync(msg);
             // As long as we're at or below the limit, the packet should still be sent
             AssertWasReceived(msg);
         }
@@ -98,8 +99,9 @@ namespace Tests
             // This message will be one byte longer than the theoretical limit of a UDP packet
             var msg = new string('f', 65508);
             listenThread.Start();
-            statsd.Add<Statsd.Counting>(msg, 1);
-            statsd.Send();
+            var batch = statsd.CreateBatch();
+            batch.Add<Statsd.Counting>(msg.AsSpan(), 1);
+            batch.Send();
             // It shouldn't be split or sent, and no exceptions should be raised.
             AssertWasReceived(null);
         }
@@ -109,9 +111,10 @@ namespace Tests
         {
             var msg = new string('f', MetricsConfig.DefaultStatsdMaxUDPPacketSize - 15);
             listenThread.Start(3); // Listen for 3 messages
-            statsd.Add<Statsd.Counting>(msg, 1);
-            statsd.Add<Statsd.Timing>(msg, 2);
-            statsd.Send();
+            var batch = statsd.CreateBatch();
+            batch.Add<Statsd.Counting>(msg.AsSpan(), 1);
+            batch.Add<Statsd.Timing>(msg.AsSpan(), 2);
+            batch.Send();
             // These two metrics should be split as their combined lengths exceed the maximum packet size
             AssertWasReceived($"{msg}:1|c", 0);
             AssertWasReceived($"{msg}:2|ms", 1);
@@ -124,10 +127,11 @@ namespace Tests
         {
             var msg = new string('f', MetricsConfig.DefaultStatsdMaxUDPPacketSize / 2);
             listenThread.Start(3);
-            statsd.Add<Statsd.Counting>("counter", 1);
-            statsd.Add<Statsd.Counting>(msg, 2);
-            statsd.Add<Statsd.Counting>(msg, 3);
-            statsd.Send();
+            var batch = statsd.CreateBatch();
+            batch.Add<Statsd.Counting>("counter".AsSpan(), 1);
+            batch.Add<Statsd.Counting>(msg.AsSpan(), 2);
+            batch.Add<Statsd.Counting>(msg.AsSpan(), 3);
+            batch.Send();
             // Make sure that a split packet can contain mulitple metrics
             AssertWasReceived($"counter:1|c\n{msg}:2|c", 0);
             AssertWasReceived($"{msg}:3|c", 1);
@@ -141,10 +145,12 @@ namespace Tests
             udp = new StatsdUDPClient(serverName, serverPort, 10);
             statsd = new Statsd(udp);
             var msg = new string('f', 5);
+
             listenThread.Start(2);
-            statsd.Add<Statsd.Counting>(msg, 1);
-            statsd.Add<Statsd.Timing>(msg, 2);
-            statsd.Send();
+            var batch = statsd.CreateBatch();
+            batch.Add<Statsd.Counting>(msg.AsSpan(), 1);
+            batch.Add<Statsd.Timing>(msg.AsSpan(), 2);
+            batch.Send();
             // Since our packet size limit is now 10, this (short) message should still be split
             AssertWasReceived($"{msg}:1|c", 0);
             AssertWasReceived($"{msg}:2|ms", 1);

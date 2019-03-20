@@ -67,10 +67,10 @@ namespace Tests
         public class SanityCheck : MetricIntegrationTests
         {
             [Test]
-            public void udp_listener_works()
+            public async Task udp_listener_works()
             {
                 var client = new StatsdUDPClient(_localhostAddress, _randomUnusedLocalPort);
-                client.Send("iamnotinsane!");
+                await client.SendAsync("iamnotinsane!");
 
                 Assert.That(LastPacketMessageReceived(), Is.EqualTo("iamnotinsane!"));
             }
@@ -208,8 +208,10 @@ namespace Tests
             {
                 var statsd = new Statsd(new StatsdUDPClient(_localhostAddress, _randomUnusedLocalPort));
 
-                statsd.Add(() => Thread.Sleep(MultiSecondSleepDelay), "time");
-                statsd.Send();
+                var batch = statsd.CreateBatch();
+
+                batch.Add(() => Thread.Sleep(MultiSecondSleepDelay), "time".AsSpan());
+                batch.Send();
                 Assert.That(LastPacketMessageReceived(), Does.Match(_expectedMultiSecondTimeRegEx));
             }
 

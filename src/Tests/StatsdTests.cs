@@ -1,9 +1,9 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using NSubstitute;
+﻿using NSubstitute;
 using NUnit.Framework;
 using StatsdClient;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Tests
 {
@@ -86,9 +86,10 @@ namespace Tests
                 _stopwatch.Get().Returns(stopwatch);
 
                 var statsd = new Statsd(_udp, _randomGenerator, _stopwatch);
-                statsd.Add(() => TestMethod(), statName);
+                var batch = statsd.CreateBatch();
+                batch.Add(() => TestMethod(), statName);
 
-                Assert.That(statsd.Commands.Single(), Is.EqualTo("name:500|ms"));
+                Assert.That(batch.Commands.Single().ToString(), Is.EqualTo("name:500|ms"));
             }
 
             [Test]
@@ -103,9 +104,10 @@ namespace Tests
                 _randomGenerator.ShouldSend(0).ReturnsForAnyArgs(true);
 
                 var statsd = new Statsd(_udp, _randomGenerator, _stopwatch);
-                statsd.Add(() => TestMethod(), statName, 0.1);
+                var batch = statsd.CreateBatch();
+                batch.Add(() => TestMethod(), statName, 0.1);
 
-                Assert.That(statsd.Commands.Single(), Is.EqualTo("name:500|ms"));
+                Assert.That(batch.Commands.Single().ToString(), Is.EqualTo("name:500|ms"));
             }
 
             [Test]
@@ -120,9 +122,10 @@ namespace Tests
                 _randomGenerator.ShouldSend(0).ReturnsForAnyArgs(false);
 
                 var s = new Statsd(_udp, _randomGenerator, _stopwatch);
-                s.Add(() => TestMethod(), statName, 0.1);
+                var batch = s.CreateBatch();
+                batch.Add(() => TestMethod(), statName, 0.1);
 
-                Assert.That(s.Commands.Count, Is.EqualTo(0));
+                Assert.That(batch.Commands.Count, Is.EqualTo(0));
             }
 
             [Test]
@@ -135,11 +138,12 @@ namespace Tests
                 _stopwatch.Get().Returns(stopwatch);
 
                 var s = new Statsd(_udp, _randomGenerator, _stopwatch);
+                var batch = s.CreateBatch();
 
-                Assert.Throws<InvalidOperationException>(() => s.Add(() => { throw new InvalidOperationException(); }, statName));
+                Assert.Throws<InvalidOperationException>(() => batch.Add(() => { throw new InvalidOperationException(); }, statName));
 
-                Assert.That(s.Commands.Count, Is.EqualTo(1));
-                Assert.That(s.Commands.ToArray()[0], Is.EqualTo("name:500|ms"));
+                Assert.That(batch.Commands.Count, Is.EqualTo(1));
+                Assert.That(batch.Commands[0].ToString(), Is.EqualTo("name:500|ms"));
             }
 
             [Test]
@@ -314,33 +318,36 @@ namespace Tests
             public void add_one_counter_and_one_gauge_shows_in_commands()
             {
                 var s = new Statsd(_udp, _randomGenerator, _stopwatch);
-                s.Add<Statsd.Counting>("counter", 1, 0.1);
-                s.Add<Statsd.Timing>("timer", 1);
+                var batch = s.CreateBatch();
+                batch.Add<Statsd.Counting>("counter", 1, 0.1);
+                batch.Add<Statsd.Timing>("timer", 1);
 
-                Assert.That(s.Commands.Count, Is.EqualTo(2));
-                Assert.That(s.Commands.ToArray()[0], Is.EqualTo("counter:1|c|@0.1"));
-                Assert.That(s.Commands.ToArray()[1], Is.EqualTo("timer:1|ms"));
+                Assert.That(batch.Commands.Count, Is.EqualTo(2));
+                Assert.That(batch.Commands[0].ToString(), Is.EqualTo("counter:1|c|@0.1"));
+                Assert.That(batch.Commands[1].ToString(), Is.EqualTo("timer:1|ms"));
             }
 
             [Test]
             public void add_one_counter_and_one_gauge_with_no_sample_rate_shows_in_commands()
             {
                 var s = new Statsd(_udp, _randomGenerator, _stopwatch);
-                s.Add<Statsd.Counting>("counter", 1);
-                s.Add<Statsd.Timing>("timer", 1);
+                var batch = s.CreateBatch();
+                batch.Add<Statsd.Counting>("counter", 1);
+                batch.Add<Statsd.Timing>("timer", 1);
 
-                Assert.That(s.Commands.Count, Is.EqualTo(2));
-                Assert.That(s.Commands.ToArray()[0], Is.EqualTo("counter:1|c"));
-                Assert.That(s.Commands.ToArray()[1], Is.EqualTo("timer:1|ms"));
+                Assert.That(batch.Commands.Count, Is.EqualTo(2));
+                Assert.That(batch.Commands[0].ToString(), Is.EqualTo("counter:1|c"));
+                Assert.That(batch.Commands[1].ToString(), Is.EqualTo("timer:1|ms"));
             }
 
             [Test]
             public void add_one_counter_and_one_timer_sends_in_one_go()
             {
                 var s = new Statsd(_udp, _randomGenerator, _stopwatch);
-                s.Add<Statsd.Counting>("counter", 1, 0.1);
-                s.Add<Statsd.Timing>("timer", 1);
-                s.Send();
+                var b = s.CreateBatch();
+                b.Add<Statsd.Counting>("counter", 1, 0.1);
+                b.Add<Statsd.Timing>("timer", 1);
+                b.Send();
 
                 _udp.Received().SendAsync("counter:1|c|@0.1\ntimer:1|ms");
             }
@@ -349,18 +356,20 @@ namespace Tests
             public void add_one_counter_and_one_timer_sends_and_removes_commands()
             {
                 var s = new Statsd(_udp, _randomGenerator, _stopwatch);
-                s.Add<Statsd.Counting>("counter", 1, 0.1);
-                s.Add<Statsd.Timing>("timer", 1);
-                s.Send();
+                var b = s.CreateBatch();
+                b.Add<Statsd.Counting>("counter", 1, 0.1);
+                b.Add<Statsd.Timing>("timer", 1);
+                b.Send();
 
-                Assert.That(s.Commands.Count, Is.EqualTo(0));
+                Assert.That(b.Commands.Count, Is.EqualTo(0));
             }
 
             [Test]
             public void add_one_counter_and_send_one_timer_sends_only_sends_the_last()
             {
                 var s = new Statsd(_udp, _randomGenerator, _stopwatch);
-                s.Add<Statsd.Counting>("counter", 1);
+                var b = s.CreateBatch();
+                b.Add<Statsd.Counting>("counter", 1);
                 s.Send<Statsd.Timing>("timer", 1);
 
                 _udp.Received().SendAsync("timer:1|ms");
@@ -372,7 +381,7 @@ namespace Tests
             [Test]
             public void set_prefix_on_stats_name_when_calling_send()
             {
-                var s = new Statsd(_udp, _randomGenerator, _stopwatch, "a.prefix.");
+                var s = new Statsd(_udp, _randomGenerator, _stopwatch, "a.prefix.".AsMemory());
                 s.Send<Statsd.Counting>("counter", 5);
                 s.Send<Statsd.Counting>("counter", 5);
 
@@ -382,11 +391,12 @@ namespace Tests
             [Test]
             public void add_counter_sets_prefix_on_name()
             {
-                var s = new Statsd(_udp, _randomGenerator, _stopwatch, "another.prefix.");
+                var s = new Statsd(_udp, _randomGenerator, _stopwatch, "another.prefix.".AsMemory());
+                var b = s.CreateBatch();
 
-                s.Add<Statsd.Counting>("counter", 1, 0.1);
-                s.Add<Statsd.Timing>("timer", 1);
-                s.Send();
+                b.Add<Statsd.Counting>("counter", 1, 0.1);
+                b.Add<Statsd.Timing>("timer", 1);
+                b.Send();
 
                 _udp.Received().SendAsync("another.prefix.counter:1|c|@0.1\nanother.prefix.timer:1|ms");
             }
@@ -395,24 +405,26 @@ namespace Tests
         public class ThreadSafety : StatsdTests
         {
             private const int ThreadCount = 10000;
-            private Statsd _stats;
+            private IStatsd _stats;
+            private IStatsdBatch _batch;
 
             [SetUp]
             public void Before_each()
             {
                 _stats = new Statsd(_udp, _randomGenerator, _stopwatch);
+                _batch = _stats.CreateBatch();
             }
 
             [Test]
             public void add_counters()
             {
-                Parallel.For(0, ThreadCount, x => Assert.DoesNotThrow(() => _stats.Add<Statsd.Counting>("random-name", 5)));
+                Parallel.For(0, ThreadCount, x => Assert.DoesNotThrow(() => _batch.Add<Statsd.Counting>("random-name", 5)));
             }
 
             [Test]
             public void add_gauges()
             {
-                Parallel.For(0, ThreadCount, x => Assert.DoesNotThrow(() => _stats.Add<Statsd.Gauge>("random-name", 5d)));
+                Parallel.For(0, ThreadCount, x => Assert.DoesNotThrow(() => _batch.Add<Statsd.Gauge>("random-name", 5d)));
             }
 
             [Test]
