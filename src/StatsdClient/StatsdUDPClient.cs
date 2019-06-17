@@ -145,14 +145,14 @@ namespace System.Text
     {
         public static unsafe int GetByteCount(this Encoding encoding, ReadOnlySpan<char> data)
         {
-            fixed (char* chars = &data.GetPinnableReference())
+            fixed (char* chars = data)
                 return encoding.GetByteCount(chars, data.Length);
         }
 
         public static unsafe int GetBytes(this Encoding encoding, ReadOnlySpan<char> data, Span<byte> span)
         {
-            fixed (char* chars = &data.GetPinnableReference())
-            fixed (byte* bytes = &span.GetPinnableReference())
+            fixed (char* chars = data)
+            fixed (byte* bytes = span)
                 return encoding.GetBytes(chars, data.Length, bytes, span.Length);
         }
     }
